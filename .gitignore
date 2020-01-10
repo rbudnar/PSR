@@ -2,3 +2,6 @@
 .ipynb_checkpoints
 **/*.csv
 **/*.zip
+*.ipynb
+hsv-color-picker.py
+**/__pycache__/**

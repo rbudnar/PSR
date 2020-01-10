@@ -5,6 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from os import listdir, system, mkdir
 from os.path import isfile, join
+import argparse
 
 RED_MASK = "red_mask"
 RED_MASK_COUNT = "red_mask_count"
@@ -13,6 +14,10 @@ WHITE_MASK_COUNT = "white_mask_count"
 ORIGINAL = "original"
 HSV = "hsv"
 
+"""
+These HSV Ranges can be modified as needed to change the mask.
+Note that only white and red are used here.
+"""
 HSV_RANGES = {
     # red is a major color
     # note that other shades of red were tested for analysis
@@ -21,22 +26,6 @@ HSV_RANGES = {
             'lower': np.array([154, 118, 106]),
             'upper': np.array([194, 249, 206])
         },
-        # {
-        #     'lower': np.array([154, 209, 106]),
-        #     'upper': np.array([194, 249, 206])
-        # },
-        # {
-        #     'lower': np.array([157, 215, 100]),
-        #     'upper': np.array([197, 255, 200])
-        # },
-        # {
-        #     'lower': np.array([0, 39, 64]),
-        #     'upper': np.array([20, 255, 255])
-        # },
-        # {
-        #     'lower': np.array([161, 39, 64]),
-        #     'upper': np.array([180, 255, 255])
-        # }
     ],
     # yellow is a minor color
     'yellow': [
@@ -97,25 +86,26 @@ HSV_RANGES = {
 }
 
 
-def get_pixel_count(path_to_img_dir, filename, save_files=False):
+def get_pixel_count(path_to_img_dir, filename, HSV_RANGES, original_image=None, save_files=False):
     """
     Generates pixel counts for red stained tissue, non tissue area, total area, and the resulting percentage.
     Tissue area is quantified as total_area - non_tissue_area.
     """
     images = dict()
-    img = cv2.imread(f"./{path_to_img_dir}/{filename}")
+    img = cv2.imread(
+        f"./{path_to_img_dir}/{filename}") if original_image is None else original_image
 
     images[ORIGINAL] = rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     images[HSV] = img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
-    mask_red = create_mask(img_hsv, ['red'])
+    mask_red = create_mask(img_hsv, ['red'], HSV_RANGES)
     images[RED_MASK] = red_mask = cv2.bitwise_and(
         img_hsv, img_hsv, mask=mask_red)
     images[RED_MASK_COUNT] = red_mask_count = cv2.cvtColor(
         red_mask, cv2.COLOR_BGR2GRAY)
     red_pixel_area = cv2.countNonZero(red_mask_count)
 
-    mask_white = create_mask(img_hsv, ['white'])
+    mask_white = create_mask(img_hsv, ['white'], HSV_RANGES)
     images[WHITE_MASK] = white_mask = cv2.bitwise_and(
         img_hsv, img_hsv, mask=mask_white)
     images[WHITE_MASK_COUNT] = white_mask_count = cv2.cvtColor(
@@ -128,7 +118,7 @@ def get_pixel_count(path_to_img_dir, filename, save_files=False):
     return (red_pixel_area, non_tissue_area, total_area, percentage, images)
 
 
-def generate_plot(images, filename, total_area, red_pixel_area, non_tissue_area, percentage, path_to_new_folder, save_files):
+def generate_plot(images, filename, total_area, red_pixel_area, non_tissue_area, percentage, path_to_new_folder, save_files, clear_fig=False):
     """
     Generates a plot with all 6 images used for analysis with resulting pixel counts and percentages.
     """
@@ -165,7 +155,7 @@ def save_images(images, path_to_new_folder, filename):
                  f"{filename}_{key}.tif", path_to_new_folder)
 
 
-def create_mask(hsv_img, colors):
+def create_mask(hsv_img, colors, HSV_RANGES):
     """
     Creates a binary mask from HSV image using given colors.
     """
@@ -211,7 +201,7 @@ def run(path_to_img_dir, image_format, save_files=True):
         clear()
         print(f"Processing {i}/{filecount}: {filename}")
         red_pixel_area, non_tissue_area, total_area, percentage, images = get_pixel_count(
-            path_to_img_dir, filename)
+            path_to_img_dir, filename, HSV_RANGES)
 
         path_to_new_folder = generate_path_to_new_folder(
             filename, path_to_img_dir)
@@ -230,4 +220,12 @@ def run(path_to_img_dir, image_format, save_files=True):
     print("Done!")
 
 
-run("./images", image_format=".tif", save_files=True)
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser()
+    ap.add_argument(
+        "-p", "--path", help="path to the images folder, e.g., ./python convert.py -p './images'", required=True)
+    ap.add_argument(
+        "-x", "--ext", help="image file extension", default=".tif")
+    args = vars(ap.parse_args())
+
+    run(args["path"], image_format=args["ext"])
