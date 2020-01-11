@@ -2,7 +2,7 @@
 
 ### Overview
 
-These python files can be used to automate quantification for tissue images stained with picrosirius red staining using python and openCV. The end result of this program (convert.py) is to produce a percentage of pixels in an image that are attributed to the red stain from the PSR process.
+These python files can be used to automate quantification for images of tissue stained with picrosirius red staining using python and openCV. The end result of this program (convert.py) is to produce a percentage of pixels in an image that are attributed to the red stain from the PSR process.
 
 An additional GUI utility (color-picker.py) is included to help determine the upper and lower bounds of red pixels to be used in the program. Note that this presently only selects the upper and lower bounds for the red mask; the white mask (used to determine the background/non-tissue pixels) has preset upper and lower bounds, but can be easily added in (please file an issue in this repository if you're interested).
 
