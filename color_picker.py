@@ -1,5 +1,5 @@
 import argparse
-from convert import RED_MASK, RED_MASK_COUNT, WHITE_MASK, WHITE_MASK_COUNT, ORIGINAL, HSV, get_pixel_count, generate_plot
+from analyzer import RED_MASK, RED_MASK_COUNT, WHITE_MASK, WHITE_MASK_COUNT, ORIGINAL, HSV, get_pixel_count, generate_plot
 import cv2
 import numpy as np
 import os
@@ -15,7 +15,7 @@ def draw_figure(figure_canvas_agg, loc=(0, 0)):
     figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=1)
 
 
-def gpc(path, fig, HSV_RANGES, save_files=False):
+def count_pixels_and_plot(path, fig, HSV_RANGES, save_files=False):
     img = cv2.imread(path, cv2.COLOR_BGR2RGB)
     red_pixel_area, non_tissue_area, total_area, percentage, images = get_pixel_count(
         ".", path, HSV_RANGES, img, save_files=False)
@@ -35,24 +35,23 @@ def draw_plot(fig, path, red_pixel_area, non_tissue_area, total_area, percentage
              f"TOTAL PIXELS: {total_area}; RED PIXELS: {red_pixel_area}; NON-TISSUE PIXELS: {non_tissue_area}; PERCENT RED: {percentage:f}",
              fontsize=10)
 
-    ax1 = plt.subplot(321)
-    ax1.title.set_text("Original image")
-    plt.imshow(images[ORIGINAL])
-    ax2 = plt.subplot(322)
-    ax2.title.set_text("HSV image")
-    plt.imshow(images[HSV])
-    ax3 = plt.subplot(323)
-    ax3.title.set_text("HSV image with red mask")
-    plt.imshow(images[RED_MASK])
-    ax4 = plt.subplot(324)
-    ax4.title.set_text("Converted image for pixel count")
-    plt.imshow(images[RED_MASK_COUNT], cmap='gray')
-    ax5 = plt.subplot(325)
-    ax5.title.set_text("Non-tissue mask")
-    plt.imshow(images[WHITE_MASK])
-    ax6 = plt.subplot(326)
-    ax6.title.set_text("Non-tissue image for pixel count")
-    plt.imshow(images[WHITE_MASK_COUNT], cmap='gray')
+    plot_image(images[ORIGINAL], "Original image", 321)
+    plot_image(images[HSV], "HSV image", 322)
+    plot_image(images[RED_MASK], "HSV image with red mask", 323)
+    plot_image(images[RED_MASK_COUNT],
+               "Converted image for pixel count", 324, gray=True)
+    plot_image(images[WHITE_MASK], "Non-tissue mask", 325)
+    plot_image(images[WHITE_MASK_COUNT],
+               "Non-tissue image for pixel count", 326, gray=True)
+
+
+def plot_image(image, text, plot, gray=False):
+    ax = plt.subplot(plot)
+    ax.title.set_text(text)
+    ax.xaxis.set_visible(False)
+    ax.yaxis.set_visible(False)
+
+    plt.imshow(image, cmap="gray") if gray else plt.imshow(image)
 
 
 def setup_window(image_path):
@@ -132,7 +131,7 @@ def setup_window(image_path):
                     }
                 ]
             }
-            gpc(image_path, fig, HSV_RANGES)
+            count_pixels_and_plot(image_path, fig, HSV_RANGES)
             draw_figure(figure_canvas_agg)
         currentVals = values
 

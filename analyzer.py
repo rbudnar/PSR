@@ -139,6 +139,10 @@ def generate_plot(images, filename, total_area, red_pixel_area, non_tissue_area,
     axs[2, 0].set_title("Non-tissue mask")
     axs[2, 1].imshow(images[WHITE_MASK_COUNT], cmap='gray')
     axs[2, 1].set_title("Non-tissue image for pixel count")
+    for i in range(3):
+        for j in range(2):
+            axs[i, j].axes.get_xaxis().set_visible(False)
+            axs[i, j].axes.get_yaxis().set_visible(False)
 
     if save_files:
         plt.savefig(f"{path_to_new_folder}/{filename}_plot.tif")
@@ -207,7 +211,10 @@ def run(path_to_img_dir, image_format, save_files=True):
             filename, path_to_img_dir)
 
         if save_files:
-            mkdir(path_to_new_folder)
+            try:
+                mkdir(path_to_new_folder)
+            except OSError as error:
+                print(error)
             save_images(images, path_to_new_folder, filename)
 
         generate_plot(images, filename, total_area, red_pixel_area,
@@ -216,7 +223,7 @@ def run(path_to_img_dir, image_format, save_files=True):
         df.loc[i] = [filename, red_pixel_area,
                      non_tissue_area, total_area, percentage]
 
-    df.to_csv("./PSR_results.csv")
+    df.to_csv(f"./{path_to_img_dir}/PSR_results.csv")
     print("Done!")
 
 
