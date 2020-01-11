@@ -25,6 +25,10 @@ Once the package requirements are installed, you can run the analyzer as follows
 ```
 python convert.py -p "./path/to/your/images/folder"
 ```
+Note that you can change the file extension for images to another type by adding an additional parameter to the command:
+```
+python convert.py -p "./path/to/your/images/folder" -e ".png"
+```
 
 Results will be saved in the images folder under a new folder for each image analyzed (the folder name will be the same as the image file name). For each image analyzed, a summary plot is generated in `*.tif` format with the summary information at the bottom. The resulting pixel information is saved to a `PSR_results.csv` file in the supplied image directory.
 
