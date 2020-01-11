@@ -71,7 +71,7 @@ def setup_window(image_path):
     }
 
     fig = plt.gcf()
-    fig.set_size_inches(10, 10)
+    fig.set_size_inches(7, 7)
     figure_x, figure_y, figure_w, figure_h = fig.bbox.bounds
     sg.change_look_and_feel('DarkAmber')
 
@@ -101,7 +101,7 @@ def setup_window(image_path):
     ]
 
     # Create the Window
-    window = sg.Window('Picker', layout)
+    window = sg.Window('Picker', layout, resizable=True)
     window.Finalize()
     canvas_elem = window['canvas']
     graph = FigureCanvasTkAgg(fig, master=canvas_elem.TKCanvas)

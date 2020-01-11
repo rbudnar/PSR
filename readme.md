@@ -8,7 +8,15 @@ An additional GUI utility (color-picker.py) is included to help determine the up
 
 ### Setup
 
-To use this program, you must have python 3.x installed on your system. [Add install instructions]
+To use this program, you must have python 3.x installed on your system, which can be downloaded from https://www.python.org/
+
+Clone or download this repository. Open a command prompt at the root directory of the folder and run the following command:
+
+```
+pip install -r requirements.txt
+```
+
+This will install all required packages to run the analyzer and the color picker.
 
 ### Running the analyzer
 
@@ -40,7 +48,7 @@ Running the analyzer will perform the following steps:
 
 ### Picking new upper and lower bounds for red detection
 
-An additional utility (color_picker.py) is provided to allow for picking new upper and lower thresholds for red stain detection. The lower and upper bounds are the minimum and maximum pixel values, respectively, to use when creating the mask that filters for red pixels.
+An additional, very basic utility (color_picker.py) is provided to allow for picking new upper and lower thresholds for red stain detection. The lower and upper bounds are the minimum and maximum pixel values, respectively, to use when creating the mask that filters for red pixels.
 
 You can run the color picker as follows:
 
