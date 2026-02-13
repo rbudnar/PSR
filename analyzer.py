@@ -1,11 +1,11 @@
-
 import cv2
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from os import listdir, system, mkdir
+from os import listdir, system, mkdir, path, makedirs
 from os.path import isfile, join
 import argparse
+from multiprocessing import Pool, Manager
 
 RED_MASK = "red_mask"
 RED_MASK_COUNT = "red_mask_count"
@@ -21,95 +21,55 @@ Note that only white and red are used here.
 HSV_RANGES = {
     # red is a major color
     # note that other shades of red were tested for analysis
-    'red': [
-        {
-            'lower': np.array([154, 118, 106]),
-            'upper': np.array([194, 249, 206])
-        },
+    "red": [
+        {"lower": np.array([154, 118, 106]), "upper": np.array([194, 249, 206])},
     ],
     # yellow is a minor color
-    'yellow': [
-        {
-            'lower': np.array([21, 39, 64]),
-            'upper': np.array([40, 255, 255])
-        }
-    ],
+    "yellow": [{"lower": np.array([21, 39, 64]), "upper": np.array([40, 255, 255])}],
     # green is a major color
-    'green': [
-        {
-            'lower': np.array([41, 39, 64]),
-            'upper': np.array([80, 255, 255])
-        }
-    ],
+    "green": [{"lower": np.array([41, 39, 64]), "upper": np.array([80, 255, 255])}],
     # cyan is a minor color
-    'cyan': [
-        {
-            'lower': np.array([81, 39, 64]),
-            'upper': np.array([100, 255, 255])
-        }
-    ],
+    "cyan": [{"lower": np.array([81, 39, 64]), "upper": np.array([100, 255, 255])}],
     # blue is a major color
-    'blue': [
-        {
-            'lower': np.array([101, 39, 64]),
-            'upper': np.array([140, 255, 255])
-        }
-    ],
+    "blue": [{"lower": np.array([101, 39, 64]), "upper": np.array([140, 255, 255])}],
     # violet is a minor color
-    'violet': [
-        {
-            'lower': np.array([141, 39, 64]),
-            'upper': np.array([160, 255, 255])
-        }
-    ],
+    "violet": [{"lower": np.array([141, 39, 64]), "upper": np.array([160, 255, 255])}],
     # next are the monochrome ranges
     # black is all H & S values, but only the lower 25% of V
-    'black': [
-        {
-            'lower': np.array([0, 0, 0]),
-            'upper': np.array([180, 255, 63])
-        }
-    ],
+    "black": [{"lower": np.array([0, 0, 0]), "upper": np.array([180, 255, 63])}],
     # gray is all H values, lower 15% of S, & between 26-89% of V
-    'gray': [
-        {
-            'lower': np.array([0, 0, 64]),
-            'upper': np.array([180, 38, 228])
-        }
-    ],
-    'white': [
-        {
-            'lower': np.array([6, 0, 145]),
-            'upper': np.array([46, 40, 245])
-        }
-    ]
+    "gray": [{"lower": np.array([0, 0, 64]), "upper": np.array([180, 38, 228])}],
+    "white": [{"lower": np.array([6, 0, 145]), "upper": np.array([46, 40, 245])}],
 }
 
 
-def get_pixel_count(path_to_img_dir, filename, HSV_RANGES, original_image=None, save_files=False):
+def get_pixel_count(
+    path_to_img_dir, filename, HSV_RANGES, original_image=None, save_files=False
+):
     """
     Generates pixel counts for red stained tissue, non tissue area, total area, and the resulting percentage.
     Tissue area is quantified as total_area - non_tissue_area.
     """
     images = dict()
-    img = cv2.imread(
-        f"./{path_to_img_dir}/{filename}") if original_image is None else original_image
+    img = (
+        cv2.imread(path.join(path_to_img_dir, filename))
+        if original_image is None
+        else original_image
+    )
 
     images[ORIGINAL] = rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     images[HSV] = img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
-    mask_red = create_mask(img_hsv, ['red'], HSV_RANGES)
-    images[RED_MASK] = red_mask = cv2.bitwise_and(
-        img_hsv, img_hsv, mask=mask_red)
-    images[RED_MASK_COUNT] = red_mask_count = cv2.cvtColor(
-        red_mask, cv2.COLOR_BGR2GRAY)
+    mask_red = create_mask(img_hsv, ["red"], HSV_RANGES)
+    images[RED_MASK] = red_mask = cv2.bitwise_and(img_hsv, img_hsv, mask=mask_red)
+    images[RED_MASK_COUNT] = red_mask_count = cv2.cvtColor(red_mask, cv2.COLOR_BGR2GRAY)
     red_pixel_area = cv2.countNonZero(red_mask_count)
 
-    mask_white = create_mask(img_hsv, ['white'], HSV_RANGES)
-    images[WHITE_MASK] = white_mask = cv2.bitwise_and(
-        img_hsv, img_hsv, mask=mask_white)
+    mask_white = create_mask(img_hsv, ["white"], HSV_RANGES)
+    images[WHITE_MASK] = white_mask = cv2.bitwise_and(img_hsv, img_hsv, mask=mask_white)
     images[WHITE_MASK_COUNT] = white_mask_count = cv2.cvtColor(
-        white_mask, cv2.COLOR_BGR2GRAY)
+        white_mask, cv2.COLOR_BGR2GRAY
+    )
 
     non_tissue_area = cv2.countNonZero(white_mask_count)
     total_area = red_mask_count.shape[0] * red_mask_count.shape[1]
@@ -118,26 +78,39 @@ def get_pixel_count(path_to_img_dir, filename, HSV_RANGES, original_image=None, 
     return (red_pixel_area, non_tissue_area, total_area, percentage, images)
 
 
-def generate_plot(images, filename, total_area, red_pixel_area, non_tissue_area, percentage, path_to_new_folder, save_files, clear_fig=False):
+def generate_plot(
+    images,
+    filename,
+    total_area,
+    red_pixel_area,
+    non_tissue_area,
+    percentage,
+    path_to_new_folder,
+    save_files,
+    clear_fig=False,
+):
     """
     Generates a plot with all 6 images used for analysis with resulting pixel counts and percentages.
     """
     fig, axs = plt.subplots(3, 2, figsize=(18, 18))
-    fig.suptitle(f"Image: {filename}", fontsize=18, fontweight='bold')
-    fig.text(0.05, 0.05,
-             f"TOTAL PIXELS: {total_area}; RED PIXELS: {red_pixel_area}; NON-TISSUE PIXELS: {non_tissue_area}; PERCENT RED: {percentage:f}",
-             fontsize=14)
+    fig.suptitle(f"Image: {filename}", fontsize=18, fontweight="bold")
+    fig.text(
+        0.05,
+        0.05,
+        f"TOTAL PIXELS: {total_area}; RED PIXELS: {red_pixel_area}; NON-TISSUE PIXELS: {non_tissue_area}; PERCENT RED: {percentage:f}",
+        fontsize=14,
+    )
     axs[0, 0].imshow(images[ORIGINAL])
     axs[0, 0].set_title("Original image")
     axs[0, 1].imshow(images[HSV])
     axs[0, 1].set_title("HSV image")
     axs[1, 0].imshow(images[RED_MASK])
     axs[1, 0].set_title("HSV image with red mask")
-    axs[1, 1].imshow(images[RED_MASK_COUNT], cmap='gray')
+    axs[1, 1].imshow(images[RED_MASK_COUNT], cmap="gray")
     axs[1, 1].set_title("Converted image for pixel count")
     axs[2, 0].imshow(images[WHITE_MASK])
     axs[2, 0].set_title("Non-tissue mask")
-    axs[2, 1].imshow(images[WHITE_MASK_COUNT], cmap='gray')
+    axs[2, 1].imshow(images[WHITE_MASK_COUNT], cmap="gray")
     axs[2, 1].set_title("Non-tissue image for pixel count")
     for i in range(3):
         for j in range(2):
@@ -154,9 +127,13 @@ def save_images(images, path_to_new_folder, filename):
     """
     Persists generated images for review.
     """
-    for (key, image) in images.items():
-        save_img(cv2.cvtColor(image, cv2.COLOR_BGR2RGB),
-                 f"{filename}_{key}.tif", path_to_new_folder)
+    base_filename = path.splitext(filename)[0]
+    for key, image in images.items():
+        save_img(
+            cv2.cvtColor(image, cv2.COLOR_BGR2RGB),
+            f"{base_filename}_{key}.tif",
+            path_to_new_folder,
+        )
 
 
 def create_mask(hsv_img, colors, HSV_RANGES):
@@ -167,72 +144,113 @@ def create_mask(hsv_img, colors, HSV_RANGES):
 
     for color in colors:
         for color_range in HSV_RANGES[color]:
-            mask += cv2.inRange(
-                hsv_img,
-                color_range['lower'],
-                color_range['upper']
-            )
+            mask += cv2.inRange(hsv_img, color_range["lower"], color_range["upper"])
 
     return mask
 
 
 def clear():
-    system('cls')
+    system("cls")
 
 
-def save_img(img, img_name, path):
-    cv2.imwrite(f"./{path}/{img_name}", img)
+def save_img(img, img_name, path_to_folder):
+    cv2.imwrite(path.join(path_to_folder, img_name), img)
 
 
-def generate_path_to_new_folder(filename, path_to_img_dir):
+def generate_image_subdirectory_path(filename, output_dir):
     i = filename.rindex(".")
     foldername = filename[:i]
-    return f"./{path_to_img_dir}/{foldername}"
+    return f"{output_dir}/{foldername}"
 
 
-def run(path_to_img_dir, image_format, save_files=True):
+def process_image_worker(args):
+    path_to_img_dir, filename, hsv_ranges, output_dir, save_files, progress_queue = args
+    if "." not in filename:
+        return None
+
+    print(f"Processing {filename}")
+    red_pixel_area, non_tissue_area, total_area, percentage, images = get_pixel_count(
+        path_to_img_dir, filename, hsv_ranges
+    )
+
+    if save_files:
+        plots_dir = f"{output_dir}/plots"
+        path_to_new_folder = generate_image_subdirectory_path(filename, output_dir)
+        makedirs(path_to_new_folder, exist_ok=True)
+        save_images(images, path_to_new_folder, filename)
+        generate_plot(
+            images,
+            filename,
+            total_area,
+            red_pixel_area,
+            non_tissue_area,
+            percentage,
+            plots_dir,
+            save_files,
+        )
+
+    if progress_queue:
+        progress_queue.put(1)
+
+    return [filename, red_pixel_area, non_tissue_area, total_area, percentage]
+
+
+def run(
+    path_to_img_dir,
+    image_format,
+    save_files=True,
+    output_dir=None,
+    hsv_ranges_override=None,
+    progress_queue=None,
+):
     """
-    Runs the procedure to generate pixel counts for the given images.
+    Runs the procedure to generate pixel counts for the given images in parallel.
     """
+    # Use override if provided
+    hsv_ranges = hsv_ranges_override if hsv_ranges_override is not None else HSV_RANGES
+
+    # Create plots directory
+    if save_files and output_dir:
+        plots_dir = f"{output_dir}/plots"
+        if not path.exists(plots_dir):
+            mkdir(plots_dir)
+
     # Grab files from specified directory
-    onlyfiles = [f for f in listdir(
-        path_to_img_dir) if f.endswith(image_format)]
+    onlyfiles = [f for f in listdir(path_to_img_dir) if f.endswith(image_format)]
+
+    pool_args = [
+        (path_to_img_dir, filename, hsv_ranges, output_dir, save_files, progress_queue)
+        for filename in onlyfiles
+    ]
+
+    with Pool() as pool:
+        results = pool.map(process_image_worker, pool_args)
+
     # create Data frame for pixel stats results
-    df = pd.DataFrame(columns=['filename', 'red_pixel_count',
-                               'non_tissue_pixel_count', 'total_pixel_count', 'percent_red'])
-    filecount = len(onlyfiles)
-    for (i, filename) in enumerate(onlyfiles):
-        clear()
-        print(f"Processing {i}/{filecount}: {filename}")
-        red_pixel_area, non_tissue_area, total_area, percentage, images = get_pixel_count(
-            path_to_img_dir, filename, HSV_RANGES)
+    df = pd.DataFrame(
+        [r for r in results if r is not None],
+        columns=[
+            "filename",
+            "red_pixel_count",
+            "non_tissue_pixel_count",
+            "total_pixel_count",
+            "percent_red",
+        ],
+    )
 
-        path_to_new_folder = generate_path_to_new_folder(
-            filename, path_to_img_dir)
-
-        if save_files:
-            try:
-                mkdir(path_to_new_folder)
-            except OSError as error:
-                print(error)
-            save_images(images, path_to_new_folder, filename)
-
-        generate_plot(images, filename, total_area, red_pixel_area,
-                      non_tissue_area, percentage, path_to_new_folder, save_files)
-        # add results to dataframe
-        df.loc[i] = [filename, red_pixel_area,
-                     non_tissue_area, total_area, percentage]
-
-    df.to_csv(f"./{path_to_img_dir}/PSR_results.csv")
+    df.to_csv(f"{(output_dir if output_dir else path_to_img_dir)}/PSR_results.csv")
     print("Done!")
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument(
-        "-p", "--path", help="path to the images folder, e.g., ./python convert.py -p './images'", required=True)
-    ap.add_argument(
-        "-x", "--ext", help="image file extension", default=".tif")
+        "-p",
+        "--path",
+        help="path to the images folder, e.g., ./python convert.py -p './images'",
+        required=True,
+    )
+    ap.add_argument("-x", "--ext", help="image file extension", default=".tif")
     args = vars(ap.parse_args())
 
     run(args["path"], image_format=args["ext"])
