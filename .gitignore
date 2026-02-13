@@ -5,3 +5,4 @@
 *.ipynb
 hsv-color-picker.py
 **/__pycache__/**
+images_for_quantification/

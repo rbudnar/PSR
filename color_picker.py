@@ -5,18 +5,12 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import PySimpleGUI as sg
+import customtkinter as ctk
 import matplotlib
 matplotlib.use('TkAgg')
 
 
-def draw_figure(figure_canvas_agg, loc=(0, 0)):
-    figure_canvas_agg.draw()
-    figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=1)
-
-
-def count_pixels_and_plot(path, fig, HSV_RANGES, save_files=False):
-    img = cv2.imread(path, cv2.COLOR_BGR2RGB)
+def count_pixels_and_plot(path, fig, HSV_RANGES, img, save_files=False):
     red_pixel_area, non_tissue_area, total_area, percentage, images = get_pixel_count(
         ".", path, HSV_RANGES, img, save_files=False)
     draw_plot(fig, path, red_pixel_area, non_tissue_area,
@@ -26,6 +20,7 @@ def count_pixels_and_plot(path, fig, HSV_RANGES, save_files=False):
     print(f"NON-TISSUE PIXELS: {non_tissue_area}")
     print(f"TOTAL PIXELS: {total_area}")
     print(f"PERCENT RED: {percentage}")
+    return images
 
 
 def draw_plot(fig, path, red_pixel_area, non_tissue_area, total_area, percentage, images):
@@ -36,7 +31,9 @@ def draw_plot(fig, path, red_pixel_area, non_tissue_area, total_area, percentage
              fontsize=10)
 
     plot_image(images[ORIGINAL], "Original image", 321)
-    plot_image(images[HSV], "HSV image", 322)
+    # Convert HSV to RGB for correct display
+    hsv_display = cv2.cvtColor(images[HSV], cv2.COLOR_HSV2RGB)
+    plot_image(hsv_display, "HSV image", 322)
     plot_image(images[RED_MASK], "HSV image with red mask", 323)
     plot_image(images[RED_MASK_COUNT],
                "Converted image for pixel count", 324, gray=True)
@@ -69,73 +66,173 @@ def setup_window(image_path):
             }
         ]
     }
+    
+    img = cv2.imread(image_path)
+    images = {}
 
-    fig = plt.gcf()
-    fig.set_size_inches(7, 7)
-    figure_x, figure_y, figure_w, figure_h = fig.bbox.bounds
-    sg.change_look_and_feel('DarkAmber')
+    ctk.set_appearance_mode("dark")
+    ctk.set_default_color_theme("dark-blue")
 
-    layout = [
-        [
-            sg.Frame("Red mask settings", [[
-                sg.Frame("Lower Bound", [
-                    [sg.Text("R"), sg.Slider(range=(
-                        0, 255), default_value=HSV_RANGES['red'][0]['lower'][0], resolution=1, orientation="h")],
-                    [sg.Text("G"), sg.Slider(range=(
-                        0, 255), default_value=HSV_RANGES['red'][0]['lower'][1], resolution=1, orientation="h")],
-                    [sg.Text("B"), sg.Slider(range=(
-                        0, 255), default_value=HSV_RANGES['red'][0]['lower'][2], resolution=1, orientation="h")]
-                ]),
-                sg.Frame("Upper Bound", [
-                    [sg.Text("R"), sg.Slider(range=(
-                        0, 255), default_value=HSV_RANGES['red'][0]['upper'][0], resolution=1, orientation="h")],
-                    [sg.Text("G"), sg.Slider(range=(
-                        0, 255), default_value=HSV_RANGES['red'][0]['upper'][1], resolution=1, orientation="h")],
-                    [sg.Text("B"), sg.Slider(range=(
-                        0, 255), default_value=HSV_RANGES['red'][0]['upper'][2], resolution=1, orientation="h")]
-                ]),
-            ]], border_width=0)
-        ],
-        [sg.Canvas(size=(figure_w, figure_h), key='canvas')],
-        [sg.Button('Close')]
-    ]
+    root = ctk.CTk()
+    root.title("Pixel Counter")
+    root.geometry("1000x1000")
 
-    # Create the Window
-    window = sg.Window('Picker', layout, resizable=True)
-    window.Finalize()
-    canvas_elem = window['canvas']
-    graph = FigureCanvasTkAgg(fig, master=canvas_elem.TKCanvas)
-    canvas = canvas_elem.TKCanvas
-    currentVals = None
+    fig = plt.figure(figsize=(7, 7), dpi=100)
 
-    figure_canvas_agg = FigureCanvasTkAgg(fig, canvas)
+    canvas_frame = ctk.CTkFrame(root)
+    canvas_frame.pack(side="right", fill="both", expand=True)
 
-    while True:
-        event, values = window.read(timeout=100)
+    figure_canvas = FigureCanvasTkAgg(fig, master=canvas_frame)
+    figure_canvas.draw()
+    figure_canvas.get_tk_widget().pack(side='top', fill='both', expand=1)
 
-        if event in (None, 'Close'):
-            break
-        if currentVals != values:
-            canvas.delete("all")
-            HSV_RANGES = {
-                'red': [
-                    {
-                        'lower': np.array([values[0], values[1], values[2]]),
-                        'upper': np.array([values[3], values[4], values[5]])
-                    },
-                ],
-                'white': [
-                    {
-                        'lower': np.array([6, 0, 145]),
-                        'upper': np.array([46, 40, 245])
-                    }
-                ]
-            }
-            count_pixels_and_plot(image_path, fig, HSV_RANGES)
-            draw_figure(figure_canvas_agg)
-        currentVals = values
+    def on_click(event):
+        if event.inaxes and event.inaxes.get_title() in ["Original image", "HSV image"]:
+            x, y = int(event.xdata), int(event.ydata)
+            hsv_img = images[HSV]
+            h, s, v = hsv_img[y, x]
+            h, s, v = int(h), int(s), int(v)
+            
+            print(f"Clicked pixel HSV: ({h}, {s}, {v})")
 
-    window.close()
+            if mask_selection.get() == 'red':
+                lower = np.array([max(0, h - 10), max(0, s - 40), max(0, v - 40)])
+                upper = np.array([min(255, h + 10), min(255, s + 40), min(255, v + 40)])
+                print(f"Setting Red mask range to: lower={lower}, upper={upper}")
+                red_lower_h_slider.set(lower[0])
+                red_lower_s_slider.set(lower[1])
+                red_lower_v_slider.set(lower[2])
+                red_upper_h_slider.set(upper[0])
+                red_upper_s_slider.set(upper[1])
+                red_upper_v_slider.set(upper[2])
+            else:
+                lower = np.array([max(0, h - 10), max(0, s - 40), max(0, v - 40)])
+                upper = np.array([min(255, h + 10), min(255, s + 40), min(255, v + 40)])
+                print(f"Setting Non-Tissue mask range to: lower={lower}, upper={upper}")
+                white_lower_h_slider.set(lower[0])
+                white_lower_s_slider.set(lower[1])
+                white_lower_v_slider.set(lower[2])
+                white_upper_h_slider.set(upper[0])
+                white_upper_s_slider.set(upper[1])
+                white_upper_v_slider.set(upper[2])
+            
+            update_plot()
+
+    fig.canvas.mpl_connect('button_press_event', on_click)
+
+    def update_plot(value=None):
+        nonlocal images
+        HSV_RANGES['red'][0]['lower'] = np.array([
+            int(red_lower_h_slider.get()),
+            int(red_lower_s_slider.get()),
+            int(red_lower_v_slider.get())
+        ])
+        HSV_RANGES['red'][0]['upper'] = np.array([
+            int(red_upper_h_slider.get()),
+            int(red_upper_s_slider.get()),
+            int(red_upper_v_slider.get())
+        ])
+        HSV_RANGES['white'][0]['lower'] = np.array([
+            int(white_lower_h_slider.get()),
+            int(white_lower_s_slider.get()),
+            int(white_lower_v_slider.get())
+        ])
+        HSV_RANGES['white'][0]['upper'] = np.array([
+            int(white_upper_h_slider.get()),
+            int(white_upper_s_slider.get()),
+            int(white_upper_v_slider.get())
+        ])
+        images = count_pixels_and_plot(image_path, fig, HSV_RANGES, img)
+        figure_canvas.draw()
+
+    sliders_frame = ctk.CTkFrame(root, width=300)
+    sliders_frame.pack(side="left", fill="y")
+
+    # Mask selection
+    mask_selection_frame = ctk.CTkFrame(sliders_frame)
+    mask_selection_frame.pack(pady=10)
+    ctk.CTkLabel(mask_selection_frame, text="Color Picker Target").pack()
+    mask_selection = ctk.StringVar(value="red")
+    ctk.CTkRadioButton(mask_selection_frame, text="Red Mask", variable=mask_selection, value="red").pack(anchor="w")
+    ctk.CTkRadioButton(mask_selection_frame, text="Non-Tissue Mask", variable=mask_selection, value="white").pack(anchor="w")
+
+
+    # Red mask sliders
+    red_mask_frame = ctk.CTkFrame(sliders_frame)
+    red_mask_frame.pack(pady=10)
+    ctk.CTkLabel(red_mask_frame, text="Red Mask Settings").pack()
+
+    # Lower bound sliders
+    lower_bound_frame = ctk.CTkFrame(red_mask_frame)
+    lower_bound_frame.pack(pady=5)
+    ctk.CTkLabel(lower_bound_frame, text="Lower Bound").pack()
+
+    for i, label in enumerate("HSV"):
+        frame = ctk.CTkFrame(lower_bound_frame)
+        frame.pack(fill='x', padx=5, pady=5)
+        ctk.CTkLabel(frame, text=label, width=10).pack(side='left')
+        slider = ctk.CTkSlider(frame, from_=0, to=255, command=update_plot)
+        slider.set(HSV_RANGES['red'][0]['lower'][i])
+        slider.pack(fill='x', expand=True, side='left', padx=5)
+        if i == 0: red_lower_h_slider = slider
+        elif i == 1: red_lower_s_slider = slider
+        else: red_lower_v_slider = slider
+
+    # Upper bound sliders
+    upper_bound_frame = ctk.CTkFrame(red_mask_frame)
+    upper_bound_frame.pack(pady=5)
+    ctk.CTkLabel(upper_bound_frame, text="Upper Bound").pack()
+
+    for i, label in enumerate("HSV"):
+        frame = ctk.CTkFrame(upper_bound_frame)
+        frame.pack(fill='x', padx=5, pady=5)
+        ctk.CTkLabel(frame, text=label, width=10).pack(side='left')
+        slider = ctk.CTkSlider(frame, from_=0, to=255, command=update_plot)
+        slider.set(HSV_RANGES['red'][0]['upper'][i])
+        slider.pack(fill='x', expand=True, side='left', padx=5)
+        if i == 0: red_upper_h_slider = slider
+        elif i == 1: red_upper_s_slider = slider
+        else: red_upper_v_slider = slider
+
+    # White mask sliders
+    white_mask_frame = ctk.CTkFrame(sliders_frame)
+    white_mask_frame.pack(pady=10)
+    ctk.CTkLabel(white_mask_frame, text="Non-Tissue Mask Settings").pack()
+
+    # Lower bound sliders
+    white_lower_bound_frame = ctk.CTkFrame(white_mask_frame)
+    white_lower_bound_frame.pack(pady=5)
+    ctk.CTkLabel(white_lower_bound_frame, text="Lower Bound").pack()
+    
+    for i, label in enumerate("HSV"):
+        frame = ctk.CTkFrame(white_lower_bound_frame)
+        frame.pack(fill='x', padx=5, pady=5)
+        ctk.CTkLabel(frame, text=label, width=10).pack(side='left')
+        slider = ctk.CTkSlider(frame, from_=0, to=255, command=update_plot)
+        slider.set(HSV_RANGES['white'][0]['lower'][i])
+        slider.pack(fill='x', expand=True, side='left', padx=5)
+        if i == 0: white_lower_h_slider = slider
+        elif i == 1: white_lower_s_slider = slider
+        else: white_lower_v_slider = slider
+
+    # Upper bound sliders
+    white_upper_bound_frame = ctk.CTkFrame(white_mask_frame)
+    white_upper_bound_frame.pack(pady=5)
+    ctk.CTkLabel(white_upper_bound_frame, text="Upper Bound").pack()
+
+    for i, label in enumerate("HSV"):
+        frame = ctk.CTkFrame(white_upper_bound_frame)
+        frame.pack(fill='x', padx=5, pady=5)
+        ctk.CTkLabel(frame, text=label, width=10).pack(side='left')
+        slider = ctk.CTkSlider(frame, from_=0, to=255, command=update_plot)
+        slider.set(HSV_RANGES['white'][0]['upper'][i])
+        slider.pack(fill='x', expand=True, side='left', padx=5)
+        if i == 0: white_upper_h_slider = slider
+        elif i == 1: white_upper_s_slider = slider
+        else: white_upper_v_slider = slider
+
+    update_plot()
+    root.mainloop()
 
 
 ap = argparse.ArgumentParser()

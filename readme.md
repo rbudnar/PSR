@@ -2,7 +2,7 @@
 
 ### Overview
 
-These python files can be used to automate quantification for images of tissue stained with picrosirius red staining using python and openCV. The end result of this program (convert.py) is to produce a percentage of pixels in an image that are attributed to the red stain from the PSR process.
+These python files can be used to automate quantification for images of tissue stained with picrosirius red staining using python and openCV. The end result of this program (analyzer.py) is to produce a percentage of pixels in an image that are attributed to the red stain from the PSR process.
 
 An additional GUI utility (color-picker.py) is included to help determine the upper and lower bounds of red pixels to be used in the program. Note that this presently only selects the upper and lower bounds for the red mask; the white mask (used to determine the background/non-tissue pixels) has preset upper and lower bounds, but can be easily added in (please file an issue in this repository if you're interested).
 
@@ -23,11 +23,11 @@ This will install all required packages to run the analyzer and the color picker
 Once the package requirements are installed, you can run the analyzer as follows:
 
 ```
-python convert.py -p "./path/to/your/images/folder"
+python analyzer.py -p "./path/to/your/images/folder"
 ```
 Note that you can change the file extension for images to another type by adding an additional parameter to the command:
 ```
-python convert.py -p "./path/to/your/images/folder" -e ".png"
+python analyzer.py -p "./path/to/your/images/folder" -e ".png"
 ```
 
 Results will be saved in the images folder under a new folder for each image analyzed (the folder name will be the same as the image file name). For each image analyzed, a summary plot is generated in `*.tif` format with the summary information at the bottom. The resulting pixel information is saved to a `PSR_results.csv` file in the supplied image directory.
