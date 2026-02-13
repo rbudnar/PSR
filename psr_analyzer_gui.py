@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import os
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from analyzer import run as run_analyzer
 import customtkinter as ctk
 import matplotlib
@@ -106,6 +106,11 @@ def setup_window(image_path=None):
     load_image_frame.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
     load_image_button = ctk.CTkButton(load_image_frame, text="Load Image", command=load_image)
     load_image_button.grid(row=0, column=0, sticky="ew")
+
+    # Navigation toolbar for zooming
+    toolbar = NavigationToolbar2Tk(figure_canvas, canvas_frame, pack_toolbar=False)
+    toolbar.update()
+    toolbar.grid(row=2, column=0, sticky="ew")
 
     sliders_frame = ctk.CTkFrame(root, width=300)
     sliders_frame.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
@@ -365,10 +370,15 @@ def setup_window(image_path=None):
         image_files = [f for f in os.listdir(input_dir) if f.endswith('.jpg')]
         file_count = len(image_files)
         
+        if file_count == 0:
+            messagebox.showwarning("Batch Processing", "No .jpg files found in the input folder.")
+            return
+
         manager = Manager()
         progress_queue = manager.Queue()
 
         thread = threading.Thread(target=run_analyzer, args=(input_dir, ".jpg", True, output_dir, HSV_RANGES, progress_queue))
+        thread.daemon = True
         thread.start()
 
         def check_queue():
@@ -383,6 +393,12 @@ def setup_window(image_path=None):
                 messagebox.showinfo("Batch Processing", "Batch processing complete!")
         
         check_queue()
+
+    def on_closing():
+        root.destroy()
+        os._exit(0)
+
+    root.protocol("WM_DELETE_WINDOW", on_closing)
 
     # Batch process
     batch_frame = ctk.CTkFrame(sliders_frame)

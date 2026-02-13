@@ -211,9 +211,8 @@ def run(
 
     # Create plots directory
     if save_files and output_dir:
-        plots_dir = f"{output_dir}/plots"
-        if not path.exists(plots_dir):
-            mkdir(plots_dir)
+        plots_dir = path.join(output_dir, "plots")
+        makedirs(plots_dir, exist_ok=True)
 
     # Grab files from specified directory
     onlyfiles = [f for f in listdir(path_to_img_dir) if f.endswith(image_format)]
