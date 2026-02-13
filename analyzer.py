@@ -87,6 +87,7 @@ def generate_plot(
     percentage,
     path_to_new_folder,
     save_files,
+    save_extension=".tif",
     clear_fig=False,
 ):
     """
@@ -118,12 +119,12 @@ def generate_plot(
             axs[i, j].axes.get_yaxis().set_visible(False)
 
     if save_files:
-        plt.savefig(f"{path_to_new_folder}/{filename}_plot.tif")
+        plt.savefig(path.join(path_to_new_folder, f"{filename}_plot{save_extension}"))
 
     plt.close()
 
 
-def save_images(images, path_to_new_folder, filename):
+def save_images(images, path_to_new_folder, filename, save_extension=".tif"):
     """
     Persists generated images for review.
     """
@@ -131,7 +132,7 @@ def save_images(images, path_to_new_folder, filename):
     for key, image in images.items():
         save_img(
             cv2.cvtColor(image, cv2.COLOR_BGR2RGB),
-            f"{base_filename}_{key}.tif",
+            f"{base_filename}_{key}{save_extension}",
             path_to_new_folder,
         )
 
@@ -154,7 +155,13 @@ def clear():
 
 
 def save_img(img, img_name, path_to_folder):
-    cv2.imwrite(path.join(path_to_folder, img_name), img)
+    ext = path.splitext(img_name)[1].lower()
+    params = []
+    if ext in [".tif", ".tiff"]:
+        # Use LZW compression (5) for TIFF files to save space losslessly
+        params = [cv2.IMWRITE_TIFF_COMPRESSION, 5]
+    
+    cv2.imwrite(path.join(path_to_folder, img_name), img, params)
 
 
 def generate_image_subdirectory_path(filename, output_dir):
@@ -164,7 +171,7 @@ def generate_image_subdirectory_path(filename, output_dir):
 
 
 def process_image_worker(args):
-    path_to_img_dir, filename, hsv_ranges, output_dir, save_files, progress_queue = args
+    path_to_img_dir, filename, hsv_ranges, output_dir, save_files, save_extension, progress_queue = args
     if "." not in filename:
         return None
 
@@ -177,7 +184,7 @@ def process_image_worker(args):
         plots_dir = f"{output_dir}/plots"
         path_to_new_folder = generate_image_subdirectory_path(filename, output_dir)
         makedirs(path_to_new_folder, exist_ok=True)
-        save_images(images, path_to_new_folder, filename)
+        save_images(images, path_to_new_folder, filename, save_extension)
         generate_plot(
             images,
             filename,
@@ -187,6 +194,7 @@ def process_image_worker(args):
             percentage,
             plots_dir,
             save_files,
+            save_extension
         )
 
     if progress_queue:
@@ -202,6 +210,7 @@ def run(
     output_dir=None,
     hsv_ranges_override=None,
     progress_queue=None,
+    save_extension=".tif"
 ):
     """
     Runs the procedure to generate pixel counts for the given images in parallel.
@@ -218,7 +227,7 @@ def run(
     onlyfiles = [f for f in listdir(path_to_img_dir) if f.endswith(image_format)]
 
     pool_args = [
-        (path_to_img_dir, filename, hsv_ranges, output_dir, save_files, progress_queue)
+        (path_to_img_dir, filename, hsv_ranges, output_dir, save_files, save_extension, progress_queue)
         for filename in onlyfiles
     ]
 

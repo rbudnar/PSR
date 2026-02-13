@@ -340,13 +340,25 @@ def setup_window(image_path=None):
     load_button = ctk.CTkButton(save_load_frame, text="Load Settings", command=load_settings)
     load_button.pack(side='right', padx=5)
 
+    # Output format selection
+    format_frame = ctk.CTkFrame(sliders_frame)
+    format_frame.pack(pady=10, padx=10, fill='x')
+    ctk.CTkLabel(format_frame, text="Batch Output Format:").pack(side='left', padx=5)
+    output_format = ctk.StringVar(value=".png")
+    ctk.CTkOptionMenu(format_frame, variable=output_format, values=[".png", ".jpg", ".tif"]).pack(side='right', padx=5)
+
+    after_id = None
+
     def batch_process():
+        nonlocal after_id
         input_dir = filedialog.askdirectory(initialdir=os.getcwd(), title="Select Input Folder with Images")
         if not input_dir:
             return
         output_dir = filedialog.askdirectory(initialdir=os.getcwd(), title="Select Destination Folder for Results")
         if not output_dir:
             return
+
+        save_ext = output_format.get()
 
         settings = {
             'red_tolerances': {
@@ -377,24 +389,36 @@ def setup_window(image_path=None):
         manager = Manager()
         progress_queue = manager.Queue()
 
-        thread = threading.Thread(target=run_analyzer, args=(input_dir, ".jpg", True, output_dir, HSV_RANGES, progress_queue))
+        thread = threading.Thread(target=run_analyzer, args=(input_dir, ".jpg", True, output_dir, HSV_RANGES, progress_queue, save_ext))
         thread.daemon = True
         thread.start()
 
         def check_queue():
-            progress = progress_queue.qsize() / file_count
-            progress_bar.set(progress)
-            progress_label.configure(text=f"{int(progress * 100)}%")
-            if progress < 1:
-                root.after(100, check_queue)
-            else:
-                progress_bar.set(0) # Reset after completion
-                progress_label.configure(text="0%")
-                messagebox.showinfo("Batch Processing", "Batch processing complete!")
+            nonlocal after_id
+            try:
+                progress = progress_queue.qsize() / file_count
+                progress_bar.set(progress)
+                progress_label.configure(text=f"{int(progress * 100)}%")
+                if progress < 1:
+                    after_id = root.after(100, check_queue)
+                else:
+                    progress_bar.set(0) # Reset after completion
+                    progress_label.configure(text="0%")
+                    messagebox.showinfo("Batch Processing", "Batch processing complete!")
+            except Exception:
+                # Handle potential errors during closing when root might be destroyed
+                pass
         
         check_queue()
 
     def on_closing():
+        nonlocal after_id
+        if after_id:
+            try:
+                root.after_cancel(after_id)
+            except Exception:
+                pass
+        root.quit()
         root.destroy()
         os._exit(0)
 

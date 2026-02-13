@@ -49,16 +49,3 @@ The output folder will contain:
 *   **`image_settings.json`**: A record of the exact color settings used for that specific batch run.
 
 ---
-
-## Command Line Interface (Advanced)
-
-For users who prefer the command line or want to integrate the analyzer into other scripts, `analyzer.py` can be run directly:
-
-```bash
-python analyzer.py -p "./path/to/your/images/folder"
-```
-
-*   `-p`: Path to the image directory.
-*   `-x`: (Optional) Image file extension (defaults to `.tif`).
-
-Results will be saved similarly to the batch processing output, with a `PSR_results.csv` file generated in the target directory.
