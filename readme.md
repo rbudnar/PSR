@@ -8,7 +8,7 @@ The primary way to use this tool is through the **PSR Analyzer GUI** (`psr_analy
 
 ## Setup
 
-1.  **Python 3.11 or newer**: Install Python from [python.org](https://www.python.org/).
+1.  **Python 3.x**: Install Python from [python.org](https://www.python.org/). Pip selects the pinned dependencies for your Python version.
 2.  **Clone/Download**: Download this repository to your local machine.
 3.  **Install Dependencies**: Open a command prompt in the project folder and run:
     ```bash
