@@ -114,6 +114,7 @@ def setup_window(image_path=None):
 
     sliders_frame = ctk.CTkFrame(root, width=300)
     sliders_frame.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+    sliders_frame.grid_columnconfigure(0, weight=1)
 
 
     def on_click(event):
@@ -183,8 +184,7 @@ def setup_window(image_path=None):
 
     def update_color_list_ui():
         for widget in red_colors_frame.winfo_children():
-            if widget not in [red_colors_label]:
-                widget.destroy()
+            widget.destroy()
         for widget in white_colors_frame.winfo_children():
             if widget not in [white_colors_label]:
                 widget.destroy()
@@ -206,7 +206,7 @@ def setup_window(image_path=None):
 
     # Color selection
     selection_frame = ctk.CTkFrame(sliders_frame)
-    selection_frame.pack(pady=10, padx=10, fill='x')
+    selection_frame.grid(row=0, pady=6, padx=10, sticky="ew")
     ctk.CTkLabel(selection_frame, text="Selected Color:").pack(side='left')
     color_swatch = ctk.CTkFrame(selection_frame, width=50, height=20, fg_color='black', border_width=1)
     color_swatch.pack(side='left', padx=5)
@@ -216,7 +216,7 @@ def setup_window(image_path=None):
 
     # Mask selection
     mask_selection_frame = ctk.CTkFrame(sliders_frame)
-    mask_selection_frame.pack(pady=10)
+    mask_selection_frame.grid(row=1, pady=6)
     ctk.CTkLabel(mask_selection_frame, text="Add to Mask:").pack()
     mask_selection = ctk.StringVar(value="red")
     ctk.CTkRadioButton(mask_selection_frame, text="Red Mask", variable=mask_selection, value="red").pack(anchor="w")
@@ -224,7 +224,7 @@ def setup_window(image_path=None):
 
     # Tolerance sliders
     red_tolerance_frame = ctk.CTkFrame(sliders_frame)
-    red_tolerance_frame.pack(pady=10, padx=10)
+    red_tolerance_frame.grid(row=2, pady=6, padx=10)
     ctk.CTkLabel(red_tolerance_frame, text="Red Mask Tolerances").pack()
     
     red_h_frame = ctk.CTkFrame(red_tolerance_frame)
@@ -249,7 +249,7 @@ def setup_window(image_path=None):
     red_v_tolerance_slider.pack(fill='x', expand=True, side='left', padx=5)
 
     white_tolerance_frame = ctk.CTkFrame(sliders_frame)
-    white_tolerance_frame.pack(pady=10, padx=10)
+    white_tolerance_frame.grid(row=3, pady=6, padx=10)
     ctk.CTkLabel(white_tolerance_frame, text="Non-Tissue Mask Tolerances").pack()
 
     white_h_frame = ctk.CTkFrame(white_tolerance_frame)
@@ -274,13 +274,12 @@ def setup_window(image_path=None):
     white_v_tolerance_slider.pack(fill='x', expand=True, side='left', padx=5)
 
     # Color list frames
-    red_colors_frame = ctk.CTkFrame(sliders_frame)
-    red_colors_frame.pack(pady=10, padx=10, fill='x')
-    red_colors_label = ctk.CTkLabel(red_colors_frame, text="Red Mask Colors")
-    red_colors_label.pack()
+    red_colors_frame = ctk.CTkScrollableFrame(sliders_frame, label_text="Red Mask Colors")
+    red_colors_frame.grid(row=4, pady=6, padx=10, sticky="nsew")
+    sliders_frame.grid_rowconfigure(4, weight=1)
 
     white_colors_frame = ctk.CTkFrame(sliders_frame)
-    white_colors_frame.pack(pady=10, padx=10, fill='x')
+    white_colors_frame.grid(row=5, pady=6, padx=10, sticky="ew")
     white_colors_label = ctk.CTkLabel(white_colors_frame, text="Non-Tissue Mask Colors")
     white_colors_label.pack()
 
@@ -334,7 +333,7 @@ def setup_window(image_path=None):
 
     # Save/Load buttons
     save_load_frame = ctk.CTkFrame(sliders_frame)
-    save_load_frame.pack(pady=10, padx=10, fill='x')
+    save_load_frame.grid(row=6, pady=6, padx=10, sticky="ew")
     save_button = ctk.CTkButton(save_load_frame, text="Save Settings", command=save_settings)
     save_button.pack(side='left', padx=5)
     load_button = ctk.CTkButton(save_load_frame, text="Load Settings", command=load_settings)
@@ -342,7 +341,7 @@ def setup_window(image_path=None):
 
     # Output format selection
     format_frame = ctk.CTkFrame(sliders_frame)
-    format_frame.pack(pady=10, padx=10, fill='x')
+    format_frame.grid(row=7, pady=6, padx=10, sticky="ew")
     ctk.CTkLabel(format_frame, text="Batch Output Format:").pack(side='left', padx=5)
     output_format = ctk.StringVar(value=".png")
     ctk.CTkOptionMenu(format_frame, variable=output_format, values=[".png", ".jpg", ".tif"]).pack(side='right', padx=5)
@@ -426,7 +425,7 @@ def setup_window(image_path=None):
 
     # Batch process
     batch_frame = ctk.CTkFrame(sliders_frame)
-    batch_frame.pack(pady=10, padx=10, fill='x')
+    batch_frame.grid(row=8, pady=6, padx=10, sticky="ew")
     batch_button = ctk.CTkButton(batch_frame, text="Batch Process", command=batch_process)
     batch_button.pack(fill='x', pady=5)
     
